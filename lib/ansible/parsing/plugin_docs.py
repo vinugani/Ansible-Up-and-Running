@@ -15,7 +15,6 @@ from ansible.utils.display import Display
 
 display = Display()
 
-
 string_to_vars = {
     'DOCUMENTATION': 'doc',
     'EXAMPLES': 'plainexamples',
@@ -143,8 +142,8 @@ def read_docstring_from_python_file(filename, verbose=True, ignore_errors=True):
                         display.warning("Building documentation, failed to assign id for %s on %s, skipping" % (t, filename))
                         continue
 
-                    if theid in string_to_vars:
-                        varkey = string_to_vars[theid]
+                    if theid in DOCSTRING_TO_VAR:
+                        varkey = DOCSTRING_TO_VAR[theid]
                         if isinstance(child.value, ast.Dict):
                             data[varkey] = ast.literal_eval(child.value)
                         else:

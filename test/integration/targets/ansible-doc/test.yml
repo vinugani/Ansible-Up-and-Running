@@ -2,6 +2,7 @@
   gather_facts: no
   environment:
     ANSIBLE_LIBRARY: "{{ playbook_dir }}/library"
+    ANSIBLE_DOC_FRAGMENT_PLUGINS: "{{ playbook_dir }}/doc_fragments"
   tasks:
     - name: module with missing description return docs
       command: ansible-doc test_docs_missing_description
