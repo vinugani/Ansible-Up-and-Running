@@ -15,11 +15,11 @@ from ansible.utils.display import Display
 
 display = Display()
 
-
 string_to_vars = {
     'DOCUMENTATION': 'doc',
     'EXAMPLES': 'plainexamples',
     'RETURN': 'returndocs',
+    'SEEALSO': 'seealso',
     'ANSIBLE_METADATA': 'metadata',  # NOTE: now unused, but kept for backwards compat
 }
 
