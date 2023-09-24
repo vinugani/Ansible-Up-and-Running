@@ -269,6 +269,21 @@ options:
             - Requires O(local) is omitted or V(False).
         type: str
         version_added: "2.12"
+    uid_min:
+        description:
+            - Sets the UID_MIN value for user creation
+            - Overwrites /etc/login.defs default value
+            - Currently supported on Linux. Does nothin when used with other platforms.
+            - Requires O(local) is omitted or V(False).
+        type: int
+    uid_max:
+        description:
+            - Sets the UID_MAX value for user creation
+            - Overwrites /etc/login.defs default value
+            - Currently supported on Linux. Does nothin when used with other platforms.
+            - Requires O(local) is omitted or V(False).
+        type: int
+
 extends_documentation_fragment: action_common_attributes
 attributes:
     check_mode:
@@ -578,9 +593,16 @@ class User(object):
         self.password_expire_min = module.params['password_expire_min']
         self.password_expire_warn = module.params['password_expire_warn']
         self.umask = module.params['umask']
+        self.uid_min = module.params['uid_min']
+        self.uid_max = module.params['uid_max']
 
-        if self.umask is not None and self.local:
-            module.fail_json(msg="'umask' can not be used with 'local'")
+        if self.local:
+            if self.umask is not None:
+                module.fail_json(msg="'umask' can not be used with 'local'")
+            if self.uid_min is not None:
+                module.fail_json(msg="'uid_min' can not be used with 'local'")
+            if self.uid_max is not None:
+                module.fail_json(msg="'uid_max' can not be used with 'local'")
 
         if module.params['groups'] is not None:
             self.groups = ','.join(module.params['groups'])
@@ -773,6 +795,14 @@ class User(object):
 
         if self.system:
             cmd.append('-r')
+
+        if self.uid_min is not None:
+            cmd.append('-K')
+            cmd.append('UID_MIN=' + str(self.uid_min))
+
+        if self.uid_max is not None:
+            cmd.append('-K')
+            cmd.append('UID_MAX=' + str(self.uid_max))
 
         cmd.append(self.name)
         (rc, out, err) = self.execute_command(cmd)
@@ -1443,6 +1473,14 @@ class FreeBsdUser(User):
             else:
                 cmd.append(str(calendar.timegm(self.expires)))
 
+        if self.uid_min is not None:
+            cmd.append('-K')
+            cmd.append('UID_MIN=' + str(self.uid_min))
+
+        if self.uid_max is not None:
+            cmd.append('-K')
+            cmd.append('UID_MAX=' + str(self.uid_max))
+
         # system cannot be handled currently - should we error if its requested?
         # create the user
         (rc, out, err) = self.execute_command(cmd)
@@ -1693,6 +1731,14 @@ class OpenBSDUser(User):
                 cmd.append('-K')
                 cmd.append('UMASK=' + self.umask)
 
+        if self.uid_min is not None:
+            cmd.append('-K')
+            cmd.append('UID_MIN=' + str(self.uid_min))
+
+        if self.uid_max is not None:
+            cmd.append('-K')
+            cmd.append('UID_MAX=' + str(self.uid_max))
+
         cmd.append(self.name)
         return self.execute_command(cmd)
 
@@ -1869,6 +1915,14 @@ class NetBSDUser(User):
             if self.umask is not None:
                 cmd.append('-K')
                 cmd.append('UMASK=' + self.umask)
+
+        if self.uid_min is not None:
+            cmd.append('-K')
+            cmd.append('UID_MIN=' + str(self.uid_min))
+
+        if self.uid_max is not None:
+            cmd.append('-K')
+            cmd.append('UID_MAX=' + str(self.uid_max))
 
         cmd.append(self.name)
         return self.execute_command(cmd)
@@ -2070,6 +2124,14 @@ class SunOS(User):
         if self.role is not None:
             cmd.append('-R')
             cmd.append(self.role)
+
+        if self.uid_min is not None:
+            cmd.append('-K')
+            cmd.append('UID_MIN=' + str(self.uid_min))
+
+        if self.uid_max is not None:
+            cmd.append('-K')
+            cmd.append('UID_MAX=' + str(self.uid_max))
 
         cmd.append(self.name)
 
@@ -2673,6 +2735,14 @@ class AIX(User):
                 cmd.append('-K')
                 cmd.append('UMASK=' + self.umask)
 
+        if self.uid_min is not None:
+            cmd.append('-K')
+            cmd.append('UID_MIN=' + str(self.uid_min))
+
+        if self.uid_max is not None:
+            cmd.append('-K')
+            cmd.append('UID_MAX=' + str(self.uid_max))
+
         cmd.append(self.name)
         (rc, out, err) = self.execute_command(cmd)
 
@@ -3005,6 +3075,14 @@ class BusyBox(User):
         if self.system:
             cmd.append('-S')
 
+        if self.uid_min is not None:
+            cmd.append('-K')
+            cmd.append('UID_MIN=' + str(self.uid_min))
+
+        if self.uid_max is not None:
+            cmd.append('-K')
+            cmd.append('UID_MAX=' + str(self.uid_max))
+
         cmd.append(self.name)
 
         rc, out, err = self.execute_command(cmd)
@@ -3149,6 +3227,8 @@ def main():
             authorization=dict(type='str'),
             role=dict(type='str'),
             umask=dict(type='str'),
+            uid_min=dict(type='int'),
+            uid_max=dict(type='int'),
         ),
         supports_check_mode=True,
     )
