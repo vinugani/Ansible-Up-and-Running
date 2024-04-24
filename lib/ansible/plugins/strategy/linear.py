@@ -73,9 +73,9 @@ class StrategyModule(StrategyBase):
         if not state_task_per_host:
             return [(h, None) for h in hosts]
 
-        if self._in_handlers and not any(filter(
-            lambda rs: rs == IteratingStates.HANDLERS,
-            (s.run_state for s, dummy in state_task_per_host.values()))
+        if self._in_handlers and all(
+            s.run_state != IteratingStates.HANDLERS
+            for s, dummy in state_task_per_host.values()
         ):
             self._in_handlers = False
 
