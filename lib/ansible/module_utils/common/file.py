@@ -24,8 +24,9 @@ except ImportError:
 from ansible.module_utils.common.text.converters import to_bytes, to_text
 
 
-if t.TYPE_CHECKING;
+if t.TYPE_CHECKING:
     Path_type = t.Union(bytes, str, os.PathLike)
+
 
 FILE_ATTRIBUTES = {
     'A': 'noatime',
