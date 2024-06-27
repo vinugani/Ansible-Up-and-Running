@@ -28,6 +28,7 @@ if t.TYPE_CHECKING:
     Path_type = t.Union[bytes, str, os.PathLike]
 
 
+DEFAULT_SELINUX_CONTEXT = [None, None, None]
 FILE_ATTRIBUTES = {
     'A': 'noatime',
     'a': 'append',
@@ -50,7 +51,6 @@ FILE_ATTRIBUTES = {
     'X': 'compressedraw',
     'Z': 'compresseddirty',
 }
-
 
 # Used for parsing symbolic file perms
 MODE_OPERATOR_RE = re.compile(r'[+=-]')
@@ -303,33 +303,42 @@ def is_selinux_mls_enabled() -> bool:
     return bool(HAVE_SELINUX and selinux.is_selinux_mls_enabled() == 1)
 
 
-def is_special_selinux_path(path: Path_type, special_fs: list = None) -> t.Tuple[bool, list]:
+def is_special_selinux_path(path: Path_type, special_fs: list | None = None) -> tuple[bool, list]:
     """
     Returns a tuple containing (True, selinux_context) if the given path is on a
     NFS or other 'special' fs  mount point, otherwise the return will be (False, None).
     """
+    is_special = False
+    special_context = DEFAULT_SELINUX_CONTEXT
+    if special_fs is None:
+        special_fs = []
+
     try:
-        f = open('/proc/mounts', 'r')
-        mount_data = f.readlines()
-        f.close()
-    except Exception:
-        return (False, None)
+        with open('/proc/mounts', 'r') as f:
+            mount_data = f.readlines()
 
-    path_mount_point = find_mount_point(path)
+        path_mount_point = Path(find_mount_point(path))
 
-    for line in mount_data:
-        (device, mount_point, fstype, options, rest) = line.split(' ', 4)
-        if to_bytes(path_mount_point, errors='surrogate_or_strict') == to_bytes(mount_point, errors='surrogate_or_strict') and special_fs is not None:
-            for fs in special_fs:
-                if fs in fstype:
-                    special_context = get_path_selinux_context(path_mount_point)
-                    return (True, special_context)
-    return (False, None)
+        for line in mount_data:
+            if is_special:
+                break
+            (device, mount_point, fstype, options, rest) = line.split(' ', 4)
+            if path_mount_point.samefile(mount_point):
+                for fs in special_fs:
+                    if fs in fstype:
+                        special_context = get_path_selinux_context(path_mount_point)
+                        is_special = True
+                        break
+    except (OSError, IOError):
+        # can ignore fs errors, will just not flag as special
+        pass
+
+    return (is_special, special_context)
 
 
-def get_path_default_selinux_context(path: Path_type, mode: int = 0) -> list | None:
+def get_path_default_selinux_context(path: Path_type, mode: int = 0) -> list:
 
-    context = None
+    context = DEFAULT_SELINUX_CONTEXT
     if is_selinux_enabled():
         ret = selinux.matchpathcon(str(path), mode)
         if ret[0] != -1:
@@ -339,9 +348,9 @@ def get_path_default_selinux_context(path: Path_type, mode: int = 0) -> list | N
     return context
 
 
-def get_path_selinux_context(path: Path_type) -> list | None:
+def get_path_selinux_context(path: Path_type) -> list:
 
-    context = None
+    context = DEFAULT_SELINUX_CONTEXT
     try:
         ret = selinux.lgetfilecon_raw(str(path))
     except OSError as e:
@@ -359,10 +368,10 @@ def get_path_selinux_context(path: Path_type) -> list | None:
     return context
 
 
-def set_selinux_context(path: Path_type, context: list, special_fs: list = None, simulate: bool = False) -> t.Tuple[list, list]:
+def set_selinux_context(path: Path_type, context: list, special_fs: list = None, simulate: bool = False) -> tuple[list, list]:
 
     cur_context = get_path_selinux_context(path)
-    new_context = None
+    new_context = DEFAULT_SELINUX_CONTEXT
 
     if is_selinux_enabled():
         new_context = list(cur_context)
@@ -382,6 +391,6 @@ def set_selinux_context(path: Path_type, context: list, special_fs: list = None,
         if cur_context != new_context and not simulate:
             rc = selinux.lsetfilecon(str(path), ':'.join(new_context))
             if rc != 0:
-                raise OSError('Settting selinux context failed')
+                raise OSError('Settting selinux context to "{new_context!r}" failed')
 
     return cur_context, new_context

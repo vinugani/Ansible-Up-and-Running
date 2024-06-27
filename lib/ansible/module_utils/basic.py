@@ -121,6 +121,7 @@ from ansible.module_utils.common.process import get_bin_path
 from ansible.module_utils.common.file import (
     _PERM_BITS as PERM_BITS,
     _DEFAULT_PERM as DEFAULT_PERM,
+    DEFAULT_SELINUX_CONTEXT,
     atomic_move,
     is_executable,
     is_selinux_enabled,
@@ -592,7 +593,7 @@ class AnsibleModule(object):
     # Determine whether we need a placeholder for selevel/mls
     def selinux_initial_context(self):
         if self._selinux_initial_context is None:
-            self._selinux_initial_context = [None, None, None]
+            self._selinux_initial_context = DEFAULT_SELINUX_CONTEXT
             if self.selinux_mls_enabled():
                 self._selinux_initial_context.append(None)
 
@@ -607,7 +608,7 @@ class AnsibleModule(object):
             except OSError:
                 # unable to read context, but we don't care, fallback to initial.
                 pass
-        if context is None:
+        if context None:
             context = self.selinux_initial_context()
         return context
 
