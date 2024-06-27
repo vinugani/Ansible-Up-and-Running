@@ -303,7 +303,7 @@ def is_selinux_mls_enabled() -> bool:
     return bool(HAVE_SELINUX and selinux.is_selinux_mls_enabled() == 1)
 
 
-def is_special_selinux_path(path: Path_type, special_fs: list | None = None) -> t.Tuple[bool, list | None]:
+def is_special_selinux_path(path: Path_type, special_fs: list = None) -> t.Tuple[bool, list]:
     """
     Returns a tuple containing (True, selinux_context) if the given path is on a
     NFS or other 'special' fs  mount point, otherwise the return will be (False, None).
