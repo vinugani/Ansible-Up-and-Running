@@ -359,7 +359,7 @@ def get_path_selinux_context(path: Path_type) -> list | None:
     return context
 
 
-def set_selinux_context(path: Path_type, context: list, special_fs: list | None = None, simulate: bool = False) -> t.Tuple[list, list | None]:
+def set_selinux_context(path: Path_type, context: list, special_fs: list | None = None, simulate: bool = False) -> t.Tuple[list, list]:
 
     cur_context = get_path_selinux_context(path)
     new_context = None
