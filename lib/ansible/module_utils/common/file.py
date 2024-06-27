@@ -25,7 +25,7 @@ from ansible.module_utils.common.text.converters import to_bytes, to_text
 
 
 if t.TYPE_CHECKING:
-    Path_type = t.Union(bytes, str, os.PathLike)
+    Path_type = t.Union[bytes, str, os.PathLike]
 
 
 FILE_ATTRIBUTES = {
@@ -69,7 +69,7 @@ _EXEC_PERM_BITS = S_IXANY       # execute permission bits
 _DEFAULT_PERM = S_IRWU_RWG_RWO  # default file permission bits
 
 
-def unfrackpath(path: Path_type, follow: bool = True, basedir: Path_type | None = None) -> Path_type:
+def unfrackpath(path: Path_type, follow: bool = True, basedir: Path_type | None = None) -> str:
     '''
     Returns a path that is free of symlinks (if follow=True), environment variables, relative path traversals and symbols (~)
 
@@ -176,7 +176,7 @@ def write_unsafely(src: Path_type, dest: Path_type):
         with open(dest, 'wb') as out_dest, open(src, 'rb') as in_src:
             shutil.copyfileobj(in_src, out_dest)
     except (shutil.Error, OSError, IOError) as e:
-        raise OSError(f'Could not write data to file ({dest}) from ({src}): {e!r}')
+        raise OSError(f'Could not write data to file ({dest!r}) from ({src!r}): {e!r}')
 
 
 def atomic_move(src: Path_type, dest: Path_type, unsafe_writes: bool = False, keep_dest_attrs: bool = True, special_fs: list | None = None):
@@ -263,13 +263,13 @@ def atomic_move(src: Path_type, dest: Path_type, unsafe_writes: bool = False, ke
                             if unsafe_writes and e.errno == errno.EBUSY:
                                 write_unsafely(b_tmp_dest_name, b_dest)
                             else:
-                                raise OSError('Unable to make %s into to %s, failed final rename from %r: %r' %
+                                raise OSError('Unable to make %r into to %r, failed final rename from %r: %r' %
                                               (src, dest, b_tmp_dest_name, e))
                     except (shutil.Error, OSError, IOError) as e:
                         if unsafe_writes:
                             write_unsafely(b_src, b_dest)
                         else:
-                            raise OSError('Failed to replace file: %s to %s: %r' % (src, dest, e))
+                            raise OSError('Failed to replace file "%r" to "%r": %r' % (src, dest, e))
                 finally:
                     if os.path.exists(b_tmp_dest_name):
                         try:
@@ -303,7 +303,7 @@ def is_selinux_mls_enabled() -> bool:
     return bool(HAVE_SELINUX and selinux.is_selinux_mls_enabled() == 1)
 
 
-def is_special_selinux_path(path: Path_type, special_fs: list | None = None) -> t.Tuple(bool, list | None):
+def is_special_selinux_path(path: Path_type, special_fs: list | None = None) -> t.Tuple[bool, list | None]:
     """
     Returns a tuple containing (True, selinux_context) if the given path is on a
     NFS or other 'special' fs  mount point, otherwise the return will be (False, None).
@@ -359,7 +359,7 @@ def get_path_selinux_context(path: Path_type) -> list | None:
     return context
 
 
-def set_selinux_context(path: Path_type, context: list, special_fs: list | None = None, simulate: bool = False) -> t.Tuple(list, list | None):
+def set_selinux_context(path: Path_type, context: list, special_fs: list | None = None, simulate: bool = False) -> t.Tuple[list, list | None]:
 
     cur_context = get_path_selinux_context(path)
     new_context = None
