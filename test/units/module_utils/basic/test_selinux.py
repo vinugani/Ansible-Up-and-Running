@@ -85,7 +85,7 @@ class TestSELinuxMU:
 
     def test_selinux_default_context(self):
         # selinux unavailable
-        with patch.object(file_Common, 'HAVE_SELINUX', False):
+        with patch.object(file_common, 'HAVE_SELINUX', False):
             assert no_args_module().selinux_default_context(path='/foo/bar') == [None, None, None]
 
         am = no_args_module(selinux_enabled=True, selinux_mls_enabled=True)
