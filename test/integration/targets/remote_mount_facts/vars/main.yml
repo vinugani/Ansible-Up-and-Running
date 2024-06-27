@@ -1,0 +1,3 @@
+sshfs_package: sshfs
+fuse_src: "{{ remote_tmp_dir }}/srv/sshfs"
+fuse_mount: "{{ remote_tmp_dir }}/mnt/sshfs"

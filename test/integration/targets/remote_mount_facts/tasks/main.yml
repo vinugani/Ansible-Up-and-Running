@@ -1,0 +1,110 @@
+- include_vars:
+    file: "{{ ansible_os_family }}.yml"
+  ignore_errors: true
+
+- name: Setup mounts with devices that don't look like paths
+  # testing locally on the remote, short circuit redundant testing
+  run_once: "{{ ansible_connection == 'local' }}"
+  block:
+    - name: Setup SSHFS fuse mount
+      block:
+        - name: Setup | create directories for fuse device and mount point
+          file:
+            path: "{{ item }}"
+            state: directory
+          loop:
+            - "{{ fuse_src }}"
+            - "{{ fuse_mount }}"
+
+        - name: Setup | ensure sshfs is installed
+          package:
+            name: "{{ sshfs_package }}"
+            state: present
+          become: yes
+          register: installed_sshfs
+          when: ansible_os_family not in ('Alpine', 'Darwin')
+
+        - name: Setup | ensure sshfs is installed for Alpine
+          shell: "apk update && apk add {{ sshfs_package }}"
+          become: yes
+          register: installed_sshfs_alpine
+          when: ansible_os_family == 'Alpine'
+
+        - name: MACOS | Find brew binary
+          command: which brew
+          register: brew_which
+          when: ansible_os_family == 'Darwin'
+
+        - name: MACOS | Get owner of brew binary
+          stat:
+            path: "{{ brew_which.stdout }}"
+          register: brew_stat
+          when: ansible_os_family == 'Darwin'
+
+        - name: Setup | ensure sshfs is installed for MacOSX
+          command: "{{ brew_which.stdout }} install {{ sshfs_package }}"
+          become: yes
+          become_user: "{{ brew_stat.stat.pw_name }}"
+          environment:
+            HOMEBREW_NO_AUTO_UPDATE: True
+          when: ansible_os_family == 'Darwin'
+          register: installed_sshfs_osx
+
+        - name: Setup | load fuse kernel for FreeBSD
+          shell: kldload fusefs
+          when: ansible_os_family == 'FreeBSD'
+
+        - name: Setup | create SSHFS mount
+          command: "sshfs localhost:{{ fuse_src }} {{ fuse_mount }}"
+          become: yes
+
+        - shell: mount | grep sshfs
+
+    - name: Test executing remote_mount_facts via gather_facts
+      gather_facts:
+      module_defaults:
+        remote_mount_facts:
+          timeout: 2
+          collect:
+            - fuse
+      vars:
+        ansible_facts_modules:
+          - remote_mount_facts
+
+    - assert:
+        that: fuse_mount in remote_mounts
+  always:
+    - become: true
+      ignore_errors: true
+      block:
+        - name: Cleanup | unmount FreeBSD and MacOSX
+          command: "umount {{ fuse_mount }}"
+          register: umount
+
+        - name: Cleanup | unload fuse kernel for FreeBSD
+          shell: kldunload fusefs
+          when: ansible_os_family == 'FreeBSD'
+
+        - name: Cleanup | unmount Linux
+          command: "fusermount3 -u {{ fuse_mount }}"
+          when: umount is failed
+          register: fusermount3
+
+        - name: Cleanup | unmount Linux fallback (Ubuntu 22.04)
+          command: "fusermount -u {{ fuse_mount }}"
+          when: fusermount3 is failed
+
+        - name: Cleanup | remove SSHFS package
+          package:
+            name: "{{ sshfs_package }}"
+            state: absent
+          when: ansible_os_family != 'Alpine' and installed_sshfs is changed
+
+        - command: "apk del {{ sshfs_package }}"
+          when: ansible_os_family == 'Alpine' and 'Installing' in installed_sshfs_alpine.stdout
+
+        - command: "brew uninstall {{ sshfs_package }}"
+          when: ansible_os_family == 'Darwin'
+          become_user: "{{ brew_stat.stat.pw_name }}"
+          environment:
+            HOMEBREW_NO_AUTO_UPDATE: True
